@@ -1,3 +1,23 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+body {
+  background-color: rgb(240, 253, 244);
+}
+
+.flex-cc {
+  @apply flex justify-center items-center;
+}
+
+.flex-bc {
+  @apply flex justify-between items-center;
+}
+
+.nav-link {
+  @apply cursor-pointer py-3 text-sm font-semibold text-gray-400 border-b-[3px] border-b-transparent;
+}
+
+.nav-active {
+  @apply text-black border-b-red-500;
+}
