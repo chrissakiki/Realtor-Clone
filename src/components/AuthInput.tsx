@@ -4,6 +4,7 @@ import { AiFillEye, AiFillEyeInvisible } from "react-icons/ai";
 interface Props {
   type: string;
   value: string;
+  name: string;
   placeholder: string;
   handleChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   showPassword?: boolean;
@@ -16,6 +17,7 @@ const AuthInput: React.FC<Props> = ({
   handleChange,
   showPassword,
   setShowPassword,
+  name,
 }) => {
   // if type is password return input password with extra util
   if (type === "password" && setShowPassword) {
@@ -24,8 +26,8 @@ const AuthInput: React.FC<Props> = ({
         <input
           className="w-full px-4 py-2 text-xl text-gray-700 bg-white border-gray-300 rounded transition ease-in-out"
           type={showPassword ? "text" : "password"}
-          id="password"
-          name="password"
+          id={name}
+          name={name}
           value={value}
           onChange={handleChange}
           placeholder={placeholder}
@@ -45,8 +47,8 @@ const AuthInput: React.FC<Props> = ({
     <input
       className="w-full px-4 py-2 text-xl text-gray-700 bg-white border-gray-300 rounded transition ease-in-out mb-6"
       type={type}
-      id={type}
-      name={type}
+      id={name}
+      name={name}
       value={value}
       onChange={handleChange}
       placeholder={placeholder}
