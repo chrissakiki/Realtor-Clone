@@ -31,3 +31,7 @@ body {
 .nav-active {
   @apply text-black border-b-red-500;
 }
+
+.transition-def {
+  @apply transition duration-200 ease-in-out;
+}
