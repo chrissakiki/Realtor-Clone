@@ -35,3 +35,7 @@ body {
 .transition-def {
   @apply transition duration-200 ease-in-out;
 }
+
+.create-listing-title {
+  @apply text-lg mt-6 mb-2 font-semibold;
+}

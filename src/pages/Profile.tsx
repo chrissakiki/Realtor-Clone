@@ -1,9 +1,10 @@
 import React from "react";
 import { auth, db } from "../firebase";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { updateProfile } from "firebase/auth";
 import { doc, updateDoc } from "firebase/firestore";
+import { FcHome } from "react-icons/fc";
 
 type initialState = {
   name: string;
@@ -98,6 +99,12 @@ const Profile = () => {
               </p>
             </div>
           </form>
+          <Link to="/create-listing">
+            <button className="w-full bg-blue-600 rounded flex-cc gap-3 text-white h-11 uppercase text-base shadow-md font-medium hover:bg-blue-700 hover:shadow-lg transition-def">
+              <FcHome className="text-2xl bg-red-200 rounded-full p-1" /> Sell
+              or rent your home
+            </button>
+          </Link>
         </div>
       </section>
     </>
