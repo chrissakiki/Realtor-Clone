@@ -99,7 +99,7 @@ const Profile = () => {
               </p>
             </div>
           </form>
-          <Link to="/create-listing">
+          <Link to="/profile/create-listing">
             <button className="w-full bg-blue-600 rounded flex-cc gap-3 text-white h-11 uppercase text-base shadow-md font-medium hover:bg-blue-700 hover:shadow-lg transition-def">
               <FcHome className="text-2xl bg-red-200 rounded-full p-1" /> Sell
               or rent your home

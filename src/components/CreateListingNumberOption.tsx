@@ -3,7 +3,7 @@ import React from "react";
 interface Props {
   name: string;
   value: number;
-  handleChange: () => void;
+  handleChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   min?: number;
   max?: number;
   required?: boolean;
@@ -19,7 +19,7 @@ const CreateListingNumberOption: React.FC<Props> = ({
   return (
     <input
       type="number"
-      name="bedrooms"
+      name={name}
       value={value}
       onChange={handleChange}
       min={min}
