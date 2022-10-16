@@ -6,9 +6,19 @@ import { AiOutlineLoading3Quarters } from "react-icons/ai";
 import { toast } from "react-toastify";
 import axios from "axios";
 import { uploadImages } from "../utils/UploadImages";
-import { addDoc, collection, serverTimestamp } from "firebase/firestore";
-import { db } from "../firebase";
-import { useNavigate } from "react-router-dom";
+import {
+  addDoc,
+  collection,
+  doc,
+  getDoc,
+  serverTimestamp,
+  updateDoc,
+} from "firebase/firestore";
+import { auth, db } from "../firebase";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
+import Spinner from "../components/Spinner";
+import { List } from "../types";
+
 export type initialState = {
   type: string;
   name: string;
@@ -21,8 +31,7 @@ export type initialState = {
   offer: boolean;
   regularPrice: number;
   discountedPrice: number;
-  latitude: number;
-  longitude: number;
+  userRef?: string;
 };
 const initialState: initialState = {
   type: "sell",
@@ -36,10 +45,11 @@ const initialState: initialState = {
   offer: false,
   regularPrice: 50,
   discountedPrice: 10,
-  latitude: 90,
-  longitude: 180,
 };
 const CreateListing = () => {
+  const [errorMessage, setErrorMessage] = React.useState("");
+  const [formLoading, setFormLoading] = React.useState(false);
+  const [editMode, setEditMode] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
   const [formData, setFormData] = React.useState(initialState);
   const [images, setImages] = React.useState<FileList | null>(null);
@@ -58,13 +68,80 @@ const CreateListing = () => {
   } = formData;
 
   const navigate = useNavigate();
+  const { id } = useParams();
+  const { pathname } = useLocation();
+
+  React.useEffect(() => {
+    if (id && pathname.includes("/edit-listing")) {
+      setEditMode(true);
+      fetchListing();
+    }
+  }, [id]);
+
+  const fetchListing = async () => {
+    if (!id || !auth.currentUser) return;
+    try {
+      setLoading(true);
+      const docRef = doc(db, "listings", id);
+      const docSnap = await getDoc(docRef);
+
+      if (docSnap.exists()) {
+        setFormData({ ...docSnap.data() } as initialState);
+
+        // protected route as user should be the same as the creator
+        if (docSnap.data().userRef !== auth.currentUser.uid) {
+          navigate("/");
+        }
+      }
+    } catch (error) {
+      navigate("/");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLocation = () => {
+    return new Promise(async (resolve, reject) => {
+      try {
+        const { data } = await axios.get(
+          `http://api.positionstack.com/v1/forward?access_key=${
+            import.meta.env.VITE_REACT_APP_GEOLOCATION_API
+          }&query=${address}`
+        );
+        const location = {
+          lat: data.data[0].latitude,
+          long: data.data[0].longitude,
+        };
+        resolve(location);
+      } catch (error) {
+        setErrorMessage("Provide a valid address");
+
+        setFormLoading(false);
+        reject(error);
+      }
+    });
+  };
 
   const handleChange = (
     e:
       | React.ChangeEvent<HTMLInputElement>
       | React.ChangeEvent<HTMLTextAreaElement>
   ) => {
+    if (
+      e.target.name === "bedrooms" ||
+      e.target.name === "bathrooms" ||
+      e.target.name === "regularPrice" ||
+      e.target.name === "discountedPrice"
+    ) {
+      return setFormData((prev) => ({
+        ...prev,
+        [e.target.name]: parseInt(e.target.value),
+      }));
+    }
+
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+
+    console.log(formData);
   };
 
   const handleImages = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -74,11 +151,9 @@ const CreateListing = () => {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    if (!images) {
-      return;
-    }
+    if (!auth.currentUser || !images) return;
 
-    if (discountedPrice >= regularPrice) {
+    if (+discountedPrice >= +regularPrice) {
       return toast.error("Discounted price should be lower than regular price");
     }
 
@@ -87,26 +162,12 @@ const CreateListing = () => {
     }
 
     try {
-      setLoading(true);
+      setFormLoading(true);
 
       //geolocation
+      const geoLocation = await handleLocation();
 
-      const { data } = await axios.get(
-        `http://api.positionstack.com/v1/forward?access_key=${
-          import.meta.env.VITE_REACT_APP_GEOLOCATION_API
-        }&query=${address}`
-      );
-
-      if (data.data.length > 0) {
-        setFormData((prev) => ({
-          ...prev,
-          latitude: data.data[0].latitude ?? 90,
-          longitude: data.data[0].longitude ?? 180,
-        }));
-      } else {
-        setLoading(false);
-        return toast.error("Address was not found. Please add a valid one");
-      }
+      if (!geoLocation) return;
 
       const imagesURL: string[] = await Promise.all(
         [...images].map((img) => {
@@ -117,26 +178,69 @@ const CreateListing = () => {
       const docRef = await addDoc(collection(db, "listings"), {
         ...formData,
         imagesURL,
+        geoLocation,
         timestamp: serverTimestamp(),
+        userRef: auth.currentUser.uid,
       });
       toast.success("Listing added successfully");
 
       navigate(`/category/${type}/${docRef.id}`);
-    } catch (error: any) {
-      toast.error(
-        error.message.split("Firebase:")[1] ?? "Something went wrong"
-      );
+    } catch (error) {
+      toast.error(errorMessage || "something went wrong");
     } finally {
-      setLoading(false);
+      setFormLoading(false);
     }
   };
+
+  const handleEdit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!auth.currentUser || !id) return;
+
+    if (+discountedPrice >= +regularPrice) {
+      return toast.error("Discounted price should be lower than regular price");
+    }
+
+    if (images && images.length > 6) {
+      toast.error("You can only add 6 images.");
+    }
+
+    try {
+      setFormLoading(true);
+
+      //geolocation
+      const geoLocation = await handleLocation();
+
+      if (!geoLocation) return;
+
+      const docRef = doc(db, "listings", id);
+      await updateDoc(docRef, {
+        ...formData,
+        geoLocation,
+      });
+      toast.success("Listing has been edited successfully");
+
+      navigate(`/category/${type}/${docRef.id}`);
+    } catch (error) {
+      toast.error(errorMessage || "something went wrong");
+    } finally {
+      setFormLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="h-screen w-full flex-cc">
+        <div className="big-spinner"></div>
+      </div>
+    );
+  }
 
   return (
     <main className="max-w-md mx-auto px-3 md:px-0">
       <h1 className="text-3xl text-gray-800 text-center my-6 font-bold">
-        Create a Listing
+        {editMode ? "Edit Listing" : "Create a Listing"}
       </h1>
-      <form className="mt-10" onSubmit={handleSubmit}>
+      <form className="mt-10" onSubmit={editMode ? handleEdit : handleSubmit}>
         {/* Rent / Sell */}
         <p className="create-listing-title">Sell / Rent</p>
         <div className="flex-cc gap-5">
@@ -311,32 +415,36 @@ const CreateListing = () => {
           </>
         )}
 
-        <div className="mb-6">
-          <p className="create-listing-title">Images</p>
-          <p className="text-gray-600 text-sm">
-            <span className="text-red-600">Note: </span> The first image will be
-            the cover. (max: 6)
-          </p>
+        {!editMode && (
+          <div>
+            <p className="create-listing-title">Images</p>
+            <p className="text-gray-600 text-sm">
+              <span className="text-red-600">Note: </span> The first image will
+              be the cover. (max: 6)
+            </p>
 
-          <input
-            type="file"
-            name="images"
-            onChange={handleImages}
-            accept=".png, .jpg, .jpeg"
-            multiple
-            required
-            className="w-full py-2 text-gray-600 bg-white border border-gray-300 rounded"
-          />
-        </div>
+            <input
+              type="file"
+              name="images"
+              onChange={handleImages}
+              accept=".png, .jpg, .jpeg, .webp"
+              multiple
+              required={!editMode}
+              className="w-full py-2 text-gray-600 bg-white border border-gray-300 rounded"
+            />
+          </div>
+        )}
 
         <button
-          disabled={loading}
+          disabled={formLoading}
           type="submit"
-          className="flex-cc mb-4 w-full h-10 bg-blue-600 text-white font-medium text-sm uppercase rounded shadow-md hover:bg-blue-700 transition-def disabled:cursor-not-allowed"
+          className="flex-cc mt-6 mb-4 w-full h-10 bg-blue-600 text-white font-medium text-sm uppercase rounded shadow-md hover:bg-blue-700 transition-def disabled:cursor-not-allowed"
         >
           {" "}
-          {loading ? (
+          {formLoading ? (
             <AiOutlineLoading3Quarters className="spinner" />
+          ) : editMode ? (
+            "Edit Listing"
           ) : (
             "Create Listing"
           )}

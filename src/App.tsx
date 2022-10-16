@@ -34,6 +34,7 @@ function App() {
           <Route path="/profile" element={<ProtectedRoute />}>
             <Route index element={<Profile />} />
             <Route path="create-listing" element={<CreateListing />} />
+            <Route path="edit-listing/:id" element={<CreateListing />} />
           </Route>
           <Route path="/sign-in" element={<SignIn />} />
           <Route path="/sign-up" element={<SignUp />} />

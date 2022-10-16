@@ -3,12 +3,28 @@ import { auth, db } from "../firebase";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { updateProfile } from "firebase/auth";
-import { doc, updateDoc } from "firebase/firestore";
+import {
+  collection,
+  deleteDoc,
+  doc,
+  getDocs,
+  orderBy,
+  query,
+  updateDoc,
+  where,
+} from "firebase/firestore";
 import { FcHome } from "react-icons/fc";
+import ListingItem from "./ListingItem";
+import type { List } from "../types";
 
 type initialState = {
   name: string;
   email: string;
+};
+
+type Listing = {
+  id: string;
+  data: List;
 };
 
 const Profile = () => {
@@ -19,6 +35,8 @@ const Profile = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = React.useState(initialState);
   const [changeDetails, setChangeDetails] = React.useState(false);
+  const [listings, setListings] = React.useState<Listing[]>([]);
+  const [loading, setLoading] = React.useState(true);
   const { name, email } = formData;
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -47,6 +65,50 @@ const Profile = () => {
     auth.signOut();
     navigate("/sign-in");
   };
+
+  const fetchLists = async () => {
+    if (!auth.currentUser) return;
+    try {
+      const docRef = collection(db, "listings");
+      const q = query(
+        docRef,
+        where("userRef", "==", auth.currentUser.uid),
+        orderBy("timestamp", "desc")
+      );
+      const querySnap = await getDocs(q);
+      let lists: Listing[] = [];
+      querySnap.forEach((doc) => {
+        return lists.push({
+          id: doc.id,
+          data: doc.data(),
+        } as Listing);
+      });
+      setListings(lists);
+    } catch (error) {
+      toast.error("Couldn't fetch lists");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, "listings", id));
+      setListings(listings.filter((list) => list.id !== id));
+      toast.success("Listings deleted successfully");
+    } catch (error: any) {
+      toast.error("Couldn't delete listing");
+      console.log(error.message);
+    }
+  };
+
+  const handleEdit = (id: string) => {
+    navigate(`/profile/edit-listing/${id}`);
+  };
+
+  React.useEffect(() => {
+    auth.currentUser?.uid && fetchLists();
+  }, [auth.currentUser?.uid]);
 
   return (
     <>
@@ -107,6 +169,30 @@ const Profile = () => {
           </Link>
         </div>
       </section>
+
+      <div className="max-w-6xl px-3 mt-10 mx-auto">
+        {!loading && listings && listings.length > 0 ? (
+          <>
+            <h2 className="text-2xl text-center font-semibold">My Listings</h2>
+
+            <ul className="sm:grid sm:grid-col-2 lg:grid-cols-3 xl:grid-col-4 2xl:grid-col-5 gap-6  my-6">
+              {listings.map((listing) => {
+                return (
+                  <ListingItem
+                    key={listing.id}
+                    id={listing.id}
+                    listing={listing.data}
+                    handleDelete={handleDelete}
+                    handleEdit={handleEdit}
+                  />
+                );
+              })}
+            </ul>
+          </>
+        ) : (
+          <></>
+        )}
+      </div>
     </>
   );
 };
