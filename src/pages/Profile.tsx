@@ -14,7 +14,7 @@ import {
   where,
 } from "firebase/firestore";
 import { FcHome } from "react-icons/fc";
-import ListingItem from "./ListingItem";
+import ListingItem from "../components/ListingCard";
 import type { List } from "../types";
 
 type initialState = {

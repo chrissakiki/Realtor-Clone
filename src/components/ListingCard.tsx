@@ -13,7 +13,7 @@ interface Props {
   handleDelete: (id: string) => void;
   handleEdit: (id: string) => void;
 }
-const ListingItem: React.FC<Props> = ({
+const ListingCard: React.FC<Props> = ({
   listing,
   id,
   handleDelete,
@@ -102,4 +102,4 @@ const ListingItem: React.FC<Props> = ({
   );
 };
 
-export default ListingItem;
+export default ListingCard;

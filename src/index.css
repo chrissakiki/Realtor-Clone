@@ -6,6 +6,12 @@ body {
   background-color: rgb(240, 253, 244);
 }
 
+.swiper-button-next:after,
+.swiper-button-prev:after {
+  color: lightgrey;
+  font-size: 30px;
+}
+
 .big-spinner {
   width: 6rem;
   height: 6rem;
